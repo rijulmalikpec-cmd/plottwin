@@ -77,24 +77,51 @@ If film not found or insufficient data, return:
 Respond ONLY with valid JSON. No preamble, no markdown fences.`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
+    // GROQ API CALL
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are PlotTwin, a semantic film analysis system. Always respond with valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 4000
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'API request failed');
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || 'API request failed');
+    }
+
+    const data = await response.json();
+    
+    // Extract text from Groq response format
+    const textContent = data.choices[0]?.message?.content || '';
+    
+    // Clean and parse JSON
+    const cleanJson = textContent.replace(/```json\n?|\n?```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+
+    setResult(parsed);
+  } catch (err) {
+    console.error('Error:', err);
+    setError(err.message || 'Failed to analyze film. Please try again.');
+  } finally {
+    setLoading(false);
+  }
 
       const data = await response.json();
       
